@@ -1,10 +1,14 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/grewanderer/animus-datalab-sdk/main/assets/banner.png" width="100%" alt="Animus DataLab">
+  <img src="https://raw.githubusercontent.com/Animus-OSC/animus-datalab-sdk/main/assets/banner.png" width="100%" alt="Animus DataLab">
 </p>
 
 # Animus DataLab Python SDK
 
 Production-oriented, typed Python SDK for **Animus DataPilot** dataset, experiment, CI provenance, artifact, and live-training telemetry APIs.
+
+**Current compatibility line:** SDK `1.2.x` · Dataset Registry `0.2.x` · Experiments `0.3.x`
+
+> **Public boundary:** this package is an intentionally public client integration surface. Private DataLab/Animus server implementation, infrastructure topology, credentials, customer data, and unreleased core code are not dependencies of this repository and must not be copied into public examples or issues.
 
 ## Design goals
 
@@ -13,7 +17,7 @@ Production-oriented, typed Python SDK for **Animus DataPilot** dataset, experime
 - **Predictable failure semantics**: normalized `AnimusAPIError`, stable request IDs, explicit validation instead of optimization-removable `assert` checks.
 - **Typed distribution**: PEP 561 `py.typed` marker and Python 3.10-3.14 compatibility.
 - **Non-blocking telemetry**: bounded background queue, retry with jitter, stable request IDs across retries, and observable delivery counters.
-- **Supply-chain ready**: build verification on every change and PyPI Trusted Publishing/attestations on release.
+- **Supply-chain-oriented release path**: build verification on every change and PyPI Trusted Publishing/attestations on release.
 
 ## Install
 
@@ -37,13 +41,19 @@ client = AnimusClient(
     auth_token="...",
 )
 
+project = client.datasets.create_project(
+    name="fraud-ml",
+    idempotency_key="project-fraud-ml-v1",
+)
+
+dataset = client.datasets.create_dataset(
+    name="fraud-training",
+    metadata={"owner": "ml"},
+)
+
 experiment = client.experiments.create_experiment(
     name="baseline",
     metadata={"team": "ml", "project": "fraud"},
-)
-
-dataset = client.datasets.get_dataset_version(
-    dataset_version_id="dataset-version-id",
 )
 ```
 
@@ -56,29 +66,46 @@ dataset = client.datasets.get_dataset_version(
 - `ANIMUS_CI_WEBHOOK_SECRET` - HMAC secret for signed CI webhook/report calls.
 - `DATAPILOT_URL`, `RUN_ID`, `TOKEN` - execution-scoped values used by `RunTelemetryLogger.from_env()`.
 
-## Experiments and immutable run metadata
+Never commit live credentials or private endpoint inventories into examples, tests, logs, or issue attachments.
+
+## Dataset lifecycle
+
+```python
+from animus_sdk import DatasetRegistryClient
+
+client = DatasetRegistryClient(gateway_url="https://datapilot.example.com")
+
+dataset = client.create_dataset(
+    name="fraud-training",
+    metadata={"owner": "ml"},
+    idempotency_key="dataset-fraud-training-v1",
+)
+```
+
+Uploads are streamed; downloads can be size-bounded and SHA-256 verified before the destination is atomically replaced.
+
+## Experiments and canonical execution
 
 ```python
 from animus_sdk import ExperimentsClient
 
 client = ExperimentsClient(gateway_url="https://datapilot.example.com")
 
-exp = client.create_experiment(
-    name="baseline",
-    description="Baseline training run",
-    metadata={"team": "ml"},
+run = client.create_run(
+    experiment_id="experiment-id",
+    dataset_version_id="dataset-version-id",
+    status="pending",
+    params={"lr": 1e-3},
 )
 
-run = client.create_run(
-    experiment_id=str(exp["experiment_id"]),
-    dataset_version_id="dataset-version-id",
-    status="succeeded",
-    params={"lr": 1e-3},
-    metrics={"accuracy": 0.91},
+client.dispatch_run(
+    project_id="project-id",
+    run_id=str(run["run_id"]),
+    idempotency_key="dispatch-build-123",
 )
 ```
 
-GitHub Actions, GitLab CI, Jenkins, and local git metadata are detected automatically when available.
+Project-scoped dispatch is the current Control Plane -> Data Plane execution boundary. Legacy execution helpers remain only for documented compatibility.
 
 ## Signed CI provenance
 
@@ -86,7 +113,7 @@ GitHub Actions, GitLab CI, Jenkins, and local git metadata are detected automati
 client.post_ci_report(
     payload={
         "image_digest": "sha256:...",
-        "repo": "ghcr.io/acme/train",
+        "repo": "ghcr.io/example/train",
         "commit_sha": "deadbeef...",
         "pipeline_id": "build-123",
         "provider": "github_actions",
@@ -128,15 +155,7 @@ from animus_sdk import RunTelemetryLogger
 
 with RunTelemetryLogger.from_env(timeout_seconds=2.0) as telemetry:
     telemetry.log_status(status="starting")
-
-    for step in range(100):
-        telemetry.log_metric(step=step, name="loss", value=1.0 / (step + 1))
-        telemetry.log_progress(
-            step=step,
-            total_steps=100,
-            percent=(step + 1) / 100.0,
-        )
-
+    telemetry.log_metric(step=0, name="loss", value=1.0)
     telemetry.log_status(status="finished")
     print(telemetry.stats)
 ```
@@ -156,35 +175,25 @@ except AnimusAPIError as exc:
         ...
 ```
 
-`retryable` describes transport/status retryability. Application-level retry safety still depends on operation semantics.
-
-## Performance and binary strategy
-
-The SDK remains a universal **pure-Python wheel** intentionally. Its hot path is network and file I/O, so compiling the entire package with Cython/Nuitka would add platform-specific build and debugging cost without a justified end-to-end latency win.
-
-The production strategy is:
-
-1. keep the public API typed and portable;
-2. stream large payloads instead of copying them into RAM;
-3. minimize allocations and use deterministic compact JSON;
-4. validate on CPython 3.10-3.14;
-5. introduce a Rust/PyO3 `abi3` native extension only when profiling identifies a CPU-bound kernel whose measured gain justifies the binary surface.
-
-This preserves one universal wheel today while keeping a clean path to native acceleration later.
+`retryable` describes transport/status retryability. Application-level retry safety still depends on operation semantics and idempotency guarantees.
 
 ## Release model
 
-Releases use tags of the form:
+Releases use immutable tags of the form:
 
 ```text
-sdk-python-v1.1.0
+sdk-python-v1.2.0
 ```
 
-The release workflow verifies tests, lint, typing, package metadata, and the tag/version match before publishing. PyPI publishing is configured for OIDC Trusted Publishing with attestations; the PyPI project must have the repository workflow registered as a Trusted Publisher.
+The release workflow verifies compile, lint, typing, tests/branch coverage, package metadata and tag/version identity before publishing. Publication uses PyPI OIDC Trusted Publishing with attestations.
 
-## Compatibility note
+See repository-level `RELEASING.md`, `CHANGELOG.md`, `docs/COMPATIBILITY.md`, `CONTRIBUTING.md`, and `SECURITY.md` for the release, compatibility, contribution, and vulnerability-reporting policies.
 
-Python 3.10 remains supported in the 1.1 line for compatibility, but it reaches upstream end-of-life in October 2026. New deployments should prefer Python 3.12-3.14.
+## Compatibility
+
+SDK `1.2.x` targets DataLab Dataset Registry `0.2.x` and Experiments `0.3.x`.
+
+Python 3.10 remains supported in the 1.2 line for compatibility, but reaches upstream end-of-life in October 2026. New deployments should prefer Python 3.12-3.14.
 
 ## License
 
