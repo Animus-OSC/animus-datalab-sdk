@@ -2,9 +2,9 @@
 
 ## System boundary
 
-Animus DataLab is a governed ML infrastructure platform. Animus Link is a separate live managed-access product in the same Animus company portfolio; the two do not share an application runtime.
+Animus DataLab is a governed ML infrastructure platform. Animus Link is a separate managed-access product in the same Animus portfolio; the two do not share an application runtime.
 
-The Python SDK belongs to DataLab. It is the client-side projection used by CI systems, training containers and operator tooling to interact with the DataPilot gateway.
+The Python SDK belongs to DataLab. It is the client-side projection used by CI systems, training containers and operator tooling to interact with the public DataPilot gateway contract.
 
 ```text
 CI / training / operator tooling
@@ -17,22 +17,24 @@ CI / training / operator tooling
    |                    |
 Dataset Registry    Experiments
                         |
-                 Control Plane state
+                 governed run state
                         |
               project-scoped dispatch
                         |
-                    Data Plane
+               isolated execution
 ```
+
+This diagram is intentionally limited to the public integration boundary. Private service topology, deployment details, internal repository structure, credentials, and unreleased Animus core implementation are outside the scope of this repository.
 
 ## Authority
 
-The SDK is not an independent source of API truth. Canonical external contracts are owned by DataLab under `core/contracts/openapi/` in the `animus-ml-datalab` repository. SDK methods are reviewed as projections of those contracts.
+The SDK is not an independent source of API truth. Canonical external contracts are owned by DataLab and maintained in a separately governed contract source. SDK methods are reviewed as projections of those published contract versions rather than as a copy of private implementation.
 
 The 1.2 SDK line targets Dataset Registry `0.2.x` and Experiments `0.3.x`.
 
 ## Execution model
 
-The Control Plane owns authoritative metadata, policy decisions, run identity, auditability and artifact mediation. User workloads execute in the Data Plane. The canonical execution transition is therefore an explicit project-scoped dispatch of an existing run.
+The platform owns authoritative metadata, policy decisions, run identity, auditability and artifact mediation. User workloads execute behind the governed execution boundary. The public SDK expresses the execution transition as an explicit project-scoped dispatch of an existing run.
 
 `ExperimentsClient.execute_run()` maps a legacy compatibility endpoint and must not be used as the architectural model for new integrations. New integrations use `create_run()` followed by `dispatch_run()`.
 
