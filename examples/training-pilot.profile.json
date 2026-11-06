@@ -1,0 +1,58 @@
+{
+  "kind": "TrainingPilotExample",
+  "profile_version": "0-design",
+  "implementation_status": "inert example; not loaded or enforced by the SDK",
+  "default_profile": "local_tiny",
+  "submission_enabled": false,
+  "local_tiny": {
+    "execution_enabled": false,
+    "purpose": "operator-provided synthetic CPU smoke; no training engine is bundled",
+    "runner": "operator-provided; not configured",
+    "workload": "operator-provided; not configured",
+    "dataset": "synthetic operator-provided data; not bundled",
+    "device": {
+      "requested": "cpu",
+      "allowed_fallbacks": []
+    },
+    "requested_limits": {
+      "max_steps": 30,
+      "max_duration_seconds": 120,
+      "max_memory_bytes": 1073741824,
+      "max_cpu_threads": 2,
+      "max_artifact_bytes": 67108864
+    },
+    "network_allowed": false,
+    "cloud_fallback_allowed": false,
+    "spending_allowed": false
+  },
+  "managed_training": {
+    "execution_enabled": false,
+    "gateway_url": "https://datalab.example.invalid",
+    "credential_env": "ANIMUS_AUTH_TOKEN",
+    "project_id": "<operator-approved-project-id>",
+    "dataset_version_id": "<operator-approved-dataset-version-id>",
+    "workload_reference": "<operator-approved-workload-or-image-digest>",
+    "idempotency_key": "<caller-generated-request-id>",
+    "device": {
+      "requested": "<operator-approved-device-profile>",
+      "allowed_fallbacks": [],
+      "require_server_confirmation": true
+    },
+    "requested_limits": {
+      "max_steps": 30,
+      "max_duration_seconds": 120,
+      "max_memory_bytes": 1073741824,
+      "max_cpu_threads": 2,
+      "max_artifact_bytes": 67108864
+    },
+    "max_charge": {
+      "amount": null,
+      "currency": null
+    },
+    "requires_explicit_budget_approval": true,
+    "requires_explicit_submit": true,
+    "server_authorization_required": true,
+    "server_quota_and_budget_enforcement_required": true,
+    "compatibility_check": "actual device, OS/architecture, driver, framework/image, memory and project policy"
+  }
+}

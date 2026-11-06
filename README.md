@@ -8,6 +8,8 @@
 
 > **Product boundary:** Animus Link is a separate secure-connectivity system. DataLab is the governed ML/research infrastructure platform in the same Animus portfolio. This repository is the client-side DataLab integration layer; it is not part of the Link runtime and does not execute untrusted workloads itself.
 
+**Free client / managed compute:** the Apache-2.0 SDK is free to use; hosted training requires separately authorized service access and spending. The [training pilot guide](docs/TRAINING-PILOT.md) and [inert example profile](examples/training-pilot.profile.json) describe that boundary without provisioning a service or starting paid work.
+
 ## Why this SDK exists
 
 DataLab separates authoritative platform state from workload execution. The **Control Plane** owns metadata, policy, lineage, audit and artifact mediation; the **Data Plane** runs isolated workloads. CI, training containers and operator tooling still need a small, predictable way to consume governed inputs and report evidence without embedding DataLab server code.
